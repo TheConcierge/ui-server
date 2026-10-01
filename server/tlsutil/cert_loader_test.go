@@ -1,4 +1,4 @@
-package rpc
+package tlsutil
 
 import (
 	"crypto/rand"

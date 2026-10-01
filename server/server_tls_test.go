@@ -41,26 +41,7 @@ import (
 	"github.com/temporalio/ui-server/v2/server/config"
 )
 
-func TestParseClientAuth(t *testing.T) {
-	cases := map[string]tls.ClientAuthType{
-		"":                 tls.RequireAndVerifyClientCert,
-		"require":          tls.RequireAndVerifyClientCert,
-		"requireAndVerify": tls.RequireAndVerifyClientCert,
-		"verifyIfGiven":    tls.VerifyClientCertIfGiven,
-		"request":          tls.RequestClientCert,
-		"requireAny":       tls.RequireAnyClientCert,
-	}
-	for in, want := range cases {
-		got, err := parseClientAuth(in)
-		assert.NoError(t, err, "input=%q", in)
-		assert.Equal(t, want, got, "input=%q", in)
-	}
-
-	_, err := parseClientAuth("bogus")
-	assert.Error(t, err)
-}
-
-func TestBuildUIServerTLSConfig(t *testing.T) {
+func TestBuildMTLSConfig(t *testing.T) {
 	dir := t.TempDir()
 	certPath := filepath.Join(dir, "server.crt")
 	keyPath := filepath.Join(dir, "server.key")
@@ -71,10 +52,8 @@ func TestBuildUIServerTLSConfig(t *testing.T) {
 	require.NoError(t, os.WriteFile(keyPath, keyPEM, 0644))
 	require.NoError(t, os.WriteFile(caPath, certPEM, 0644))
 
-	tlsCfg, err := buildUIServerTLSConfig(config.UIServerTLS{
-		CertFile: certPath,
-		KeyFile:  keyPath,
-		CaFile:   caPath,
+	tlsCfg, err := buildMTLSConfig(certPath, keyPath, config.UIServerMTLS{
+		CaFile: caPath,
 	})
 	require.NoError(t, err)
 	require.NotNil(t, tlsCfg)
@@ -90,7 +69,7 @@ func TestBuildUIServerTLSConfig(t *testing.T) {
 	require.NotNil(t, cert)
 }
 
-func TestBuildUIServerTLSConfig_ClientAuthOverride(t *testing.T) {
+func TestBuildMTLSConfig_ClientAuthOverride(t *testing.T) {
 	dir := t.TempDir()
 	certPath := filepath.Join(dir, "server.crt")
 	keyPath := filepath.Join(dir, "server.key")
@@ -101,9 +80,7 @@ func TestBuildUIServerTLSConfig_ClientAuthOverride(t *testing.T) {
 	require.NoError(t, os.WriteFile(keyPath, keyPEM, 0644))
 	require.NoError(t, os.WriteFile(caPath, certPEM, 0644))
 
-	tlsCfg, err := buildUIServerTLSConfig(config.UIServerTLS{
-		CertFile:   certPath,
-		KeyFile:    keyPath,
+	tlsCfg, err := buildMTLSConfig(certPath, keyPath, config.UIServerMTLS{
 		CaFile:     caPath,
 		ClientAuth: "verifyIfGiven",
 	})
@@ -111,16 +88,14 @@ func TestBuildUIServerTLSConfig_ClientAuthOverride(t *testing.T) {
 	assert.Equal(t, tls.VerifyClientCertIfGiven, tlsCfg.ClientAuth)
 }
 
-func TestBuildUIServerTLSConfig_MissingCertFile(t *testing.T) {
-	_, err := buildUIServerTLSConfig(config.UIServerTLS{
-		CertFile: "/does/not/exist.crt",
-		KeyFile:  "/does/not/exist.key",
-		CaFile:   "/does/not/exist.ca",
+func TestBuildMTLSConfig_MissingCertFile(t *testing.T) {
+	_, err := buildMTLSConfig("/does/not/exist.crt", "/does/not/exist.key", config.UIServerMTLS{
+		CaFile: "/does/not/exist.ca",
 	})
 	assert.Error(t, err)
 }
 
-func TestBuildUIServerTLSConfig_InvalidCA(t *testing.T) {
+func TestBuildMTLSConfig_InvalidCA(t *testing.T) {
 	dir := t.TempDir()
 	certPath := filepath.Join(dir, "server.crt")
 	keyPath := filepath.Join(dir, "server.key")
@@ -131,15 +106,13 @@ func TestBuildUIServerTLSConfig_InvalidCA(t *testing.T) {
 	require.NoError(t, os.WriteFile(keyPath, keyPEM, 0644))
 	require.NoError(t, os.WriteFile(caPath, []byte("not a cert"), 0644))
 
-	_, err := buildUIServerTLSConfig(config.UIServerTLS{
-		CertFile: certPath,
-		KeyFile:  keyPath,
-		CaFile:   caPath,
+	_, err := buildMTLSConfig(certPath, keyPath, config.UIServerMTLS{
+		CaFile: caPath,
 	})
 	assert.Error(t, err)
 }
 
-func TestBuildUIServerTLSConfig_InvalidClientAuth(t *testing.T) {
+func TestBuildMTLSConfig_InvalidClientAuth(t *testing.T) {
 	dir := t.TempDir()
 	certPath := filepath.Join(dir, "server.crt")
 	keyPath := filepath.Join(dir, "server.key")
@@ -150,9 +123,7 @@ func TestBuildUIServerTLSConfig_InvalidClientAuth(t *testing.T) {
 	require.NoError(t, os.WriteFile(keyPath, keyPEM, 0644))
 	require.NoError(t, os.WriteFile(caPath, certPEM, 0644))
 
-	_, err := buildUIServerTLSConfig(config.UIServerTLS{
-		CertFile:   certPath,
-		KeyFile:    keyPath,
+	_, err := buildMTLSConfig(certPath, keyPath, config.UIServerMTLS{
 		CaFile:     caPath,
 		ClientAuth: "totally-not-real",
 	})

@@ -100,19 +100,19 @@ type (
 	UIServerTLS struct {
 		CertFile string `yaml:"certFile"`
 		KeyFile  string `yaml:"keyFile"`
-		// CaFile is the path to a PEM-encoded CA bundle used to verify
-		// client certificates. When set, the server requires and verifies
-		// client certs (mTLS). See ClientAuth for verification mode.
+		// MTLS - optional. When set, enables mTLS on the UI server.
+		MTLS *UIServerMTLS `yaml:"mTLS,omitempty"`
+	}
+
+	UIServerMTLS struct {
+		// CaFile is the path to a CA bundle used to verify client certificates.
 		CaFile string `yaml:"caFile"`
-		// ClientAuth controls how client certificates are handled when CaFile
-		// is set. Valid values:
-		//   ""                 -> requireAndVerify (default)
+		// ClientAuth controls how client certificates are handled. Valid values:
+		//   ""                 -> tls.RequireAndVerifyClientCert (default)
 		//   "requireAndVerify" -> tls.RequireAndVerifyClientCert
-		//   "require"          -> tls.RequireAndVerifyClientCert (alias)
 		//   "verifyIfGiven"    -> tls.VerifyClientCertIfGiven
 		//   "request"          -> tls.RequestClientCert
 		//   "requireAny"       -> tls.RequireAnyClientCert
-		// Ignored when CaFile is empty.
 		ClientAuth string `yaml:"clientAuth"`
 	}
 
@@ -170,6 +170,9 @@ func (c *Config) Validate() error {
 	}
 
 	if err := c.Auth.Validate(); err != nil {
+		return err
+	}
+	if err := c.UIServerTLS.Validate(); err != nil {
 		return err
 	}
 
